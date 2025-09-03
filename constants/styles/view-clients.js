@@ -3,15 +3,7 @@ import { StyleSheet } from "react-native";
 export const styles = StyleSheet.create({
   container: { flex: 1},
   errorText: { backgroundColor: "#ef4444", color: "#fff", padding: 8, textAlign: "center" },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    borderBottomWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-
-  searchInput: { flex: 1, marginLeft: 8 },
+  
   clientRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -49,4 +41,43 @@ export const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 12 },
   modalButton: { marginTop: 16, backgroundColor: "#2563eb", padding: 10, borderRadius: 6 },
   modalButtonText: { color: "#fff", textAlign: "center" },
+
+  tabContainer: {
+    flexDirection: "row",
+    justifyContent: "flex-end", //top- right corner
+    alignItems: "center",
+    marginBottom: 15,
+    marginTop: 10,
+    marginLeft: 10, 
+  },
+
+  tabButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    backgroundColor: "#f0f0f0",
+    borderRadius: 20,
+    marginRight: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 3,
+    elevation: 2,
+  },
+
+  activeTab: {
+    backgroundColor: "#144478ff",
+  },
+
+  tabText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#333",
+  },
+
+  activeTabText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
+
+
 });
