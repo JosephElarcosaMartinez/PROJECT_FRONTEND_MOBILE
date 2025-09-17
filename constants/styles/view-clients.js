@@ -1,9 +1,9 @@
 import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
-  container: { flex: 1},
+  container: { flex: 1 },
   errorText: { backgroundColor: "#ef4444", color: "#fff", padding: 8, textAlign: "center" },
-  
+
   clientRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -36,7 +36,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  
+
   modalBox: { backgroundColor: "#fff", padding: 24, borderRadius: 8, width: "90%" },
   modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 12 },
   modalButton: { marginTop: 16, backgroundColor: "#2563eb", padding: 10, borderRadius: 6 },
@@ -48,7 +48,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 15,
     marginTop: 10,
-    marginLeft: 10, 
+    marginLeft: 10,
   },
 
   tabButton: {
