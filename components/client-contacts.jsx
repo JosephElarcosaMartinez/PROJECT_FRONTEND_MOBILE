@@ -13,6 +13,7 @@ import { Pencil, Trash2 } from "lucide-react-native"; // works with lucide-react
 import { useAuth } from "@/context/auth-context"; // keep same context
 import { getEndpoint } from "../constants/api-config";
 import { styles } from "../constants/styles/client-contacts"; // base styles
+import { colors } from "../constants/styles/colors";
 import AddContact from "./add-contacts"; // modal component
 
 const ClientContact = () => {
@@ -30,6 +31,7 @@ const ClientContact = () => {
     contact_fullname: '',
     contact_email: '',
     contact_phone: '',
+    contact_address: '',
     contact_role: '',
     client_id: '',
   });
@@ -113,6 +115,7 @@ const ClientContact = () => {
       contact_fullname: item.contact_fullname || '',
       contact_email: item.contact_email || '',
       contact_phone: item.contact_phone || '',
+      contact_address: item.contact_address || '',
       contact_role: item.contact_role || '',
       client_id: item.client_id,
     });
@@ -154,19 +157,21 @@ const ClientContact = () => {
   };
 
   const renderContactItem = ({ item }) => (
-    <View style={[styles.contactCard, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
+    <View style={[styles.card, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
       <View style={{ flex: 1, paddingRight: 8 }}>
         <Text style={styles.contactName}>{item.contact_fullname}</Text>
         <Text style={styles.contactText}>{item.contact_email}</Text>
         {item.contact_phone ? <Text style={styles.contactText}>{item.contact_phone}</Text> : null}
+        {item.contact_address ? <Text style={styles.contactText}>{item.contact_address}</Text> : null}
         {item.contact_role ? <Text style={styles.contactText}>{item.contact_role}</Text> : null}
         <Text style={styles.contactText}>{getClientNameById(item.client_id)}</Text>
       </View>
       <View style={[styles.actionsRow, { marginTop: 0 }]}>
-        <TouchableOpacity onPress={() => openEdit(item)} accessibilityLabel="Edit Contact">
+        <TouchableOpacity hitSlop={styles.iconHitSlop} onPress={() => openEdit(item)} accessibilityLabel="Edit Contact">
           <Pencil color="orange" size={20} />
         </TouchableOpacity>
         <TouchableOpacity
+          hitSlop={styles.iconHitSlop}
           onPress={() => { setContactToBeRemoved(item); setRemoveContactModalOpen(true); }}
           accessibilityLabel="Delete Contact"
         >
@@ -182,27 +187,13 @@ const ClientContact = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={{ flex: 1 }}>
       {error && <Text style={styles.errorText}>{error.message}</Text>}
 
 
       {/* Floating Add Contact Button */}
       <TouchableOpacity
-        style={{
-          position: 'absolute',
-          bottom: 20,
-          right: 20,
-          backgroundColor: '#114d89',
-          paddingVertical: 14,
-          paddingHorizontal: 16,
-          borderRadius: 28,
-          shadowColor: '#000',
-          shadowOpacity: 0.2,
-          shadowRadius: 4,
-          shadowOffset: { width: 0, height: 2 },
-          elevation: 4,
-          zIndex: 10,
-        }}
+        style={styles.fab}
         onPress={() => setShowAddModal(true)}
         activeOpacity={0.85}
         accessibilityLabel="Add Contact"
@@ -215,6 +206,8 @@ const ClientContact = () => {
         data={paginatedContacts}
         keyExtractor={(item) => item.contact_id.toString()}
         renderItem={renderContactItem}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
         ListEmptyComponent={
           <Text style={styles.emptyText}>No client contacts found.</Text>
         }
@@ -293,9 +286,11 @@ const ClientContact = () => {
             </View>
             {/* Inputs */}
             <View style={{ marginTop: 4 }}>
-              <EditableField label="Full Name" value={editForm.contact_fullname} onChange={(v) => setEditForm(f => ({ ...f, contact_fullname: v }))} />
+              <EditableField label="First Name" value={editForm.contact_fullname} onChange={(v) => setEditForm(f => ({ ...f, contact_fullname: v }))} />
+              <EditableField label="Last Name" value={editForm.contact_fullname} onChange={(v) => setEditForm(f => ({ ...f, contact_fullname: v }))} />
               <EditableField label="Email" value={editForm.contact_email} onChange={(v) => setEditForm(f => ({ ...f, contact_email: v }))} keyboardType="email-address" />
               <EditableField label="Phone" value={editForm.contact_phone} onChange={(v) => setEditForm(f => ({ ...f, contact_phone: v }))} keyboardType="phone-pad" />
+              <EditableField label="Address" value={editForm.contact_address} onChange={(v) => setEditForm(f => ({ ...f, contact_address: v }))} />
               <EditableField label="Role" value={editForm.contact_role} onChange={(v) => setEditForm(f => ({ ...f, contact_role: v }))} />
             </View>
             <View style={styles.modalActions}>

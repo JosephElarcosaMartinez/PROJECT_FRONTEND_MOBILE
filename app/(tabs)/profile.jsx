@@ -1,5 +1,5 @@
 import {
-  Bell, Phone, MapPin, Edit2, Settings, Building, Mail, ArrowLeft,
+  Bell, Phone, Edit2, Settings, Building, Mail, ArrowLeft,
   Clock, User2Icon, AlertCircle, Lock
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -7,16 +7,17 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Alert, Image, ScrollView, Text, TextInput, TouchableOpacity,
-  View, Platform, Modal, Switch
+  View, Modal, Switch, Platform
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { today, initialProfile } from "@/constants/sample_data";
+import { initialProfile } from "@/constants/sample_data";
 import images from "@/constants/images";
 import { styles } from "@/constants/styles/(tabs)/profile_styles";
 import { useAuth } from "@/context/auth-context";
 import { API_CONFIG, getEndpoint } from "@/constants/api-config";
 import * as ImagePicker from 'expo-image-picker';
+import LogDetailsModal from "@/components/log-details-modal";
 
 function Profile() {
   const router = useRouter();
@@ -30,7 +31,6 @@ function Profile() {
     user_id: initialProfile.user_id,
     user_date_created: initialProfile.dateCreated,
     user_email: initialProfile.email,
-    // Leave password blank; only send when user explicitly sets a new one
     user_password: "",
     user_phonenum: initialProfile.phone,
     user_status: initialProfile.status,
@@ -42,7 +42,6 @@ function Profile() {
   });
 
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showLogs, setShowLogs] = useState(false);
 
   const [prefs, setPrefs] = useState({
     push: true,
@@ -50,19 +49,15 @@ function Profile() {
     sms: false,
   });
 
-  const [logs, setLogs] = useState([]);
-  const [loadingLogs, setLoadingLogs] = useState(false);
   const [saving, setSaving] = useState(false);
   const [pickingImage, setPickingImage] = useState(false);
-  const [newImage, setNewImage] = useState(null); // holds { uri, type, name }
+  const [newImage, setNewImage] = useState(null);
 
-  const [searchText, setSearchText] = useState("");
-
-  const filteredLogs = logs.filter(
-    (log) =>
-      log.action.toLowerCase().includes(searchText.toLowerCase()) ||
-      log.time.toLowerCase().includes(searchText.toLowerCase())
-  );
+  // State for logs UI in modal
+  const [showLogs, setShowLogs] = useState(false);
+  const [logs, setLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -88,7 +83,6 @@ function Profile() {
             user_id: userProfile.user_id,
             user_date_created: userProfile.user_date_created,
             user_email: userProfile.user_email,
-            // do not preload (likely hashed) password
             user_password: "",
             user_phonenum: userProfile.user_phonenum,
             user_status: userProfile.user_status,
@@ -112,23 +106,27 @@ function Profile() {
     loadProfile();
   }, [user]);
 
+  
   // Fetch logs from backend
   useEffect(() => {
     const fetchLogs = async () => {
       if (!user?.user_id) return;
       setLoadingLogs(true);
       try {
-        const res = await fetch(getEndpoint(`/user-logs/${user.user_id}`), {
+        const endpointPath = user?.user_role === 'Admin' ? `/user-logs` : `/user-logs/${user.user_id}`;
+        const res = await fetch(getEndpoint(endpointPath), {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
         });
         if (!res.ok) throw new Error('Failed to fetch logs');
         const data = await res.json();
-        // Expecting array; map to {id, action, time}
+        // Expecting array; map to {id, action, time}; preserve raw
         const mapped = Array.isArray(data) ? data.map((l, idx) => ({
-          id: l.log_id || idx,
-          action: l.action || l.user_action || l.description || 'Activity',
-          time: l.timestamp || l.created_at || l.time || new Date().toISOString(),
+          id: l.user_log_id || l.log_id || idx,
+          action: l.user_log_description || l.user_log_action || l.description || l.action || 'Activity',
+          time: l.user_log_time || l.user_log_datetime || l.timestamp || l.created_at || l.time || new Date().toISOString(),
+          raw: l,
         })) : [];
         setLogs(mapped);
       } catch (err) {
@@ -138,7 +136,16 @@ function Profile() {
       }
     };
     fetchLogs();
-  }, [user?.user_id]);
+  }, [user?.user_id, user?.user_role]);
+
+  const [showLogDetails, setShowLogDetails] = useState(false);
+  const [selectedLog, setSelectedLog] = useState(null);
+
+  const filteredLogs = React.useMemo(() => {
+    const q = searchText.trim().toLowerCase();
+    if (!q) return logs;
+    return logs.filter((l) => [l.action, l.time].filter(Boolean).some((v) => String(v).toLowerCase().includes(q)));
+  }, [logs, searchText]);
 
   const saveProfileToStorage = async (updatedProfile) => {
     await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile));
@@ -320,7 +327,9 @@ function Profile() {
             )}
           </View>
           <Text style={styles.name}>{profile.name}</Text>
-          <Text style={styles.role}>{profile.user_role}</Text>
+          <Text style={styles.role}>
+            {profile.user_role === 'Admin' ? 'Super Lawyer' : profile.user_role}
+          </Text>
 
           {!isEditing ? (
             <TouchableOpacity style={styles.editBtn} onPress={() => setIsEditing(true)} disabled={saving}>
@@ -486,7 +495,7 @@ function Profile() {
         {/* Settings and Logs */}
         {!isEditing && (
           <View style={styles.settingsCard}>
-            <TouchableOpacity style={styles.settingsItem} onPress={() => setShowLogs(true)}>
+          <TouchableOpacity style={styles.settingsItem} onPress={() => setShowLogs(true)}>
               <Settings size={20} color="#0B3D91" />
               <Text style={styles.settingsText}>Activity Logs</Text>
             </TouchableOpacity>
@@ -545,6 +554,7 @@ function Profile() {
           </View>
         </View>
       </Modal>
+
 
       {/* Activity Logs Modal */}
       <Modal visible={showLogs} animationType="slide">
@@ -623,7 +633,11 @@ function Profile() {
                   }}
                 >
                   <Clock size={20} color="#0B3D91" style={{ marginTop: 2 }} />
-                  <View style={{ flex: 1 }}>
+                  <TouchableOpacity
+                    style={{ flex: 1 }}
+                    activeOpacity={0.7}
+                    onPress={() => { setSelectedLog(log.raw || log); setShowLogDetails(true); }}
+                  >
                     <Text
                       style={{
                         fontSize: 15,
@@ -637,7 +651,7 @@ function Profile() {
                     <Text style={{ fontSize: 13, color: "#555" }}>
                       {log.time}
                     </Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
               ))
             ) : (
@@ -656,6 +670,13 @@ function Profile() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Log Details Modal */}
+      <LogDetailsModal
+        visible={showLogDetails}
+        onClose={() => setShowLogDetails(false)}
+        log={selectedLog}
+      />
 
       {/* Notification Preferences Modal */}
       <Modal visible={showNotifications} animationType="slide">
