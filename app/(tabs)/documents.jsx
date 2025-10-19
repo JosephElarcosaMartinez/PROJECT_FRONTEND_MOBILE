@@ -11,7 +11,7 @@ import {
   Keyboard,
   Linking,
 } from "react-native";
-import { Calendar, Clock, Download, Eye, Search, ChevronDown } from "lucide-react-native";
+import { Calendar, User, Download, Search, ChevronDown } from "lucide-react-native";
 import { CASE_FILTERS, DOC_TYPES } from "@/constants/sample_data";
 import { styles } from "../../constants/styles/(tabs)/documents_styles";
 import { API_CONFIG, getEndpoint } from "@/constants/api-config";
@@ -65,11 +65,29 @@ const Dropdown = ({ label, options, value, onSelect, topOffset }) => {
   );
 };
 
+// Helper to format dates: Month day, Year. Hour:Minute AM/PM
+const formatDateTime = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return String(value); // Fallback to raw if unparsable
+  const datePart = date.toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+  const timePart = date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `${datePart}. ${timePart}`;
+};
+
 const Documents = () => {
   const [activeTab, setActiveTab] = useState("Recent");
   const [caseFilter, setCaseFilter] = useState("All Cases");
   const [typeFilter, setTypeFilter] = useState("All Types");
   const [docs, setDocs] = useState([]);
+  const [users, setUsers] = useState([]); // for resolving submitter names
   const [loading, setLoading] = useState(false);
 
   // Fetch documents from backend
@@ -85,16 +103,28 @@ const Documents = () => {
         if (!res.ok) throw new Error('Failed to fetch documents');
         const data = await res.json();
         const origin = String(API_CONFIG.BASE_URL || '').replace('/api', '');
-        const mapped = Array.isArray(data) ? data.map((d, idx) => ({
-          id: d.doc_id || idx,
-          title: d.doc_name || 'Untitled',
-          caseName: d.case_id ? `Case #${d.case_id}` : 'No Case',
-          type: d.doc_type || 'Document',
-          date: d.doc_due_date || d.created_at || d.updated_at || '',
-          size: d.size || '',
-          fileUrl: d.doc_file ? `${origin}${d.doc_file}` : null,
-          raw: d,
-        })) : [];
+        const mapped = Array.isArray(data)
+          ? data
+              .filter((d) => !!d?.doc_file) // only include docs with actual file
+              .map((d, idx) => {
+                const isTask = String(d?.doc_type || '').toLowerCase().includes('task');
+                const chosenDate = isTask
+                  ? (d.doc_date_submitted || d.doc_due_date || d.updated_at)
+                  : (d.doc_date_created || d.created_at || d.updated_at || d.doc_due_date);
+                return {
+                  id: d.doc_id || idx,
+                  title: d.doc_name || 'Untitled',
+                  caseName: d.case_id ? `Case #${d.case_id}` : 'No Case',
+                  type: d.doc_type || 'Document',
+                  date: chosenDate || '',
+                  size: d.size || '',
+                  fileUrl: d.doc_file ? `${origin}${d.doc_file}` : null,
+                  submittedById: d.doc_submitted_by || d.submitted_by_id || null,
+                  submittedByName: d.submitted_by_name || null,
+                  raw: d,
+                };
+              })
+          : [];
         setDocs(mapped);
       } catch (e) {
         console.warn('Documents fetch failed:', e.message);
@@ -104,6 +134,32 @@ const Documents = () => {
     };
     fetchDocs();
   }, []);
+
+  // Fetch users to resolve submitter names (web-style client-side join)
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await fetch(getEndpoint('/users'), { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        setUsers(Array.isArray(data) ? data : []);
+      } catch {
+        setUsers([]);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  const getSubmitterName = (submittedById) => {
+    if (!submittedById) return '-';
+    // compare as strings to avoid type mismatches
+    const idStr = String(submittedById);
+    const u = users.find(x => String(x.user_id) === idStr);
+    if (!u) return idStr; // fallback to showing the id
+    const m = u.user_mname ? `${u.user_mname[0]}.` : '';
+    const name = `${u.user_fname} ${m} ${u.user_lname}`.replace(/\s+/g, ' ').trim();
+    return u.user_role === 'Staff' ? name : `Atty. ${name}`;
+  };
 
   const filteredDocs = docs.filter(
     (doc) =>
@@ -172,11 +228,14 @@ const Documents = () => {
                 <View style={styles.docMeta}>
                   <View style={styles.metaItem}>
                     <Calendar size={14} color="#666" />
-                    <Text style={styles.metaText}>{doc.date ? String(doc.date) : ''}</Text>
+                    <Text style={styles.metaText}>{doc.date ? formatDateTime(doc.date) : ''}</Text>
                   </View>
                   <View style={styles.metaItem}>
-                    <Clock size={14} color="#666" />
                     <Text style={styles.metaText}>{doc.size || '-'}</Text>
+                  </View>
+                  <View style={styles.metaItem}>
+                    <User size={14} color="#666" />
+                    <Text style={styles.metaText}>{doc.submittedByName || getSubmitterName(doc.submittedById)}</Text>
                   </View>
                 </View>
 
